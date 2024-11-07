@@ -1,0 +1,52 @@
+//************************ BUILT FOR S&P FUTURES ON THE DAILY TIME FRAME **********************************//
+
+//@version=5
+strategy("Momentum strategy", overlay=true)
+
+//-- Global variables -- //
+pos = strategy.position_size
+price = strategy.position_avg_price 
+
+// -- Input Variables -- //
+show = input.bool(true, 'Show Labels ?')
+
+//-- Trailing stop variables -- //
+atr = ta.atr(20)
+mult = input.float(2.5, 'atr multi')
+
+//-- Strategy variables --//
+mom1 = close - close[3] 
+mom2 = close - close[10]
+
+//--strategy logic--//
+entry = mom1 < mom1[2] and mom2 < mom2[2]
+exit = mom1 > 0  and close > price
+
+// -- Strategy entry --//
+if entry and pos == 0
+    strategy.entry('Long', strategy.long)
+    if show == true
+        label.new(bar_index, high + atr * 2, style=label.style_triangledown, color=color.green,size=size.auto, tooltip =
+         'Close : '+str.tostring(close,'#.##')+'\nClose[3] : '+str.tostring(close[3])+'\nClose[10] : '+str.tostring(close[10])+'\nMomentum (short) : '+str.tostring(mom1)+'\nMomentum (short) [2] : '+str.tostring(mom1[2])+
+          '\nMomentum (long) : '+str.tostring(mom2)+'\nMomentum (long) [2] : '+str.tostring(mom2[2]))
+
+//-- Trailing stop loss --- code taken from robot traders --- //
+tsl = low[1] - (atr*mult)
+
+long_stop_price = 0.0
+long_stop_price := if pos > 0
+    math.max(tsl, long_stop_price[1])
+else
+    0
+
+// -- Strategy exit -- //
+if pos > 0
+    strategy.exit(id='TSL', stop=long_stop_price)
+    if exit
+        if show == true
+            label.new(bar_index, high + atr * 2, style=label.style_circle, color=color.aqua, size=size.auto, tooltip = 'Close : '+str.tostring(close)+'\nEntry Price : '+str.tostring(price)+
+             '\nMomentum : '+str.tostring(mom1,'#.##'))
+        strategy.close(id='Long', comment='Profit')
+
+// -- Plotting -- //
+plot(series = pos > 0 ? long_stop_price : na, color=color.red, style=plot.style_linebr, linewidth=2)
