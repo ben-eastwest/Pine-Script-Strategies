@@ -1,0 +1,53 @@
+//************************ BUILT FOR S&P FUTURES ON THE DAILY TIME FRAME **********************************//
+
+//@version=5
+strategy("Dual RSI Strategy", overlay=true)
+
+//-- Global variables -- //
+pos = strategy.position_size
+price = strategy.position_avg_price 
+
+// -- Input Variables -- //
+show = input.bool(true, 'Show Labels ?')
+
+//-- Trailing stop variables -- //
+atr = ta.atr(20)
+mult = input.float(2.5, 'atr multi')
+
+//-- Strategy variables --//
+rsi1_len = input.int(14, 'RSI 1 Length ? ')
+rsi2_len = input.int(2, 'RSI 2 Length ?')
+rsi1 = ta.rsi(close, rsi1_len)
+rsi2 = ta.rsi(close, rsi2_len)
+
+//--strategy logic--//
+entry = rsi1 <= rsi1[3] and rsi2 <= rsi2[1]
+exit = rsi2 >= 85 and close > price
+
+// -- Strategy entry --//
+if entry and pos == 0
+    strategy.entry('Long', strategy.long)
+    if show == true
+        label.new(bar_index, high + atr * 2, style=label.style_triangledown, color=color.green,size=size.auto, tooltip =
+         'RSI 14 : '+str.tostring(rsi1,'#.##')+'\nRSI 14[3] :'+str.tostring(rsi1[3],'#.##')+'\nRSI 2 :'+str.tostring(rsi2,'#.##')+'\nRSI 2[1] :'+str.tostring(rsi2[1],'#.##'))
+
+//-- Trailing stop loss --- code taken from robot traders --- //
+tsl = low[1] - (atr*mult)
+
+long_stop_price = 0.0
+long_stop_price := if pos > 0
+    math.max(tsl, long_stop_price[1])
+else
+    0
+
+// -- Strategy exit -- //
+if pos > 0
+    strategy.exit(id='Stop', stop=long_stop_price)
+    if exit
+        if show == true
+            label.new(bar_index, high + atr * 2, style=label.style_circle, color=color.aqua, size=size.auto, tooltip = 'RSI 2 : '+str.tostring(rsi2, '#.##')+'\nEntry Price :'+str.tostring(price)+'\nClose :'+str.tostring(close))
+        strategy.close(id='Long', comment='Profit')
+        
+
+// -- Plotting -- //
+plot(series = pos > 0 ? long_stop_price : na, color=color.red, style=plot.style_linebr, linewidth = 2)
