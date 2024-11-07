@@ -1,0 +1,41 @@
+//************************ BUILT FOR S&P FUTURES ON THE DAILY TIME FRAME **********************************//
+
+//@version=5
+strategy("Close to Low strategy", overlay=true,margin_long = 100)
+
+//-- Global variables -- //
+pos = strategy.position_size
+price = strategy.position_avg_price 
+
+//-- Trailing stop variables -- //
+atr = ta.atr(20)
+mult = input.float(2.5, 'atr multi')
+
+//-- Strategy variables --//
+
+
+//--strategy logic--//
+entry = close <= ta.lowest(close,5)
+exit = low >= ta.highest(low, 10) and close > price
+
+// -- Strategy entry --//
+if entry and pos == 0
+    strategy.entry('Long', strategy.long)
+
+//-- Trailing stop loss --- code taken from robot traders --- //
+tsl = low[1] - (atr*mult)
+
+long_stop_price = 0.0
+long_stop_price := if pos > 0
+    math.max(tsl, long_stop_price[1])
+else
+    0
+
+// -- Strategy exit -- //
+if pos > 0
+    strategy.exit(id='TSL', stop=long_stop_price)
+    if exit
+        strategy.close(id='Long', comment='Profit')
+
+// -- Plotting -- //
+plot(series = pos > 0 ? long_stop_price : na, color=color.red, style=plot.style_linebr, linewidth = 2)
