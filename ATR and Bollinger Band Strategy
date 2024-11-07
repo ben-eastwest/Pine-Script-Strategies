@@ -1,0 +1,55 @@
+//************************ BUILT FOR S&P FUTURES ON THE DAILY TIME FRAME **********************************//
+
+//@version=5
+strategy("ATR and B Band strategy", overlay=true)
+
+//-- Global variables -- //
+pos = strategy.position_size
+price = strategy.position_avg_price 
+
+// -- Input Variables -- //
+show = input.bool(true, 'Show Labels ?')
+showbb = input.bool(true, 'Show Bollinger Band ?')
+
+//-- Trailing stop variables -- //
+atr = ta.atr(20)
+mult = input.float(3, 'atr multi')
+
+//-- Strategy variables --//
+[middle, upper, lower] = ta.bb(close, 20, 2)
+
+//--strategy logic--//
+entry = low <= close[1] + (atr[1]*0.5) and upper > upper[1]
+exit = close >= close[1] + (atr[1] * 0.5) and close > price
+
+// -- Strategy entry --//
+if entry and pos == 0
+    strategy.entry('Long', strategy.long)
+    if show == true
+        label.new(bar_index, high + atr * 2, style=label.style_triangledown, color=color.green,size=size.auto, tooltip =
+         'Close[1] : '+str.tostring(close[1])+'\nATR :'+str.tostring(atr[1],'#.##')+'\nLow level :'+str.tostring(close[1] + (atr[1]*0.5),'#.##')+'\nLow :'+str.tostring(low)+
+         '\nBBU :'+str.tostring(upper,'#.##')+'\nBBU[1]'+str.tostring(upper[1],'#.##'))
+    
+
+//-- Trailing stop loss --- code taken from robot traders --- //
+tsl = low[1] - (atr*mult)
+
+long_stop_price = 0.0
+long_stop_price := if pos > 0
+    math.max(tsl, long_stop_price[1])
+else
+    0
+
+// -- Strategy exit -- //
+if pos > 0
+    strategy.exit(id='TSL', stop=long_stop_price)
+    if exit
+        if show == true
+            label.new(bar_index, high + atr * 2, style=label.style_circle, color=color.aqua, size=size.auto, tooltip = 'Profit Level : '+str.tostring(close[1] + (atr[1] * 0.5), '#.##')+'\nClose :'
+             +str.tostring(close)+'\nEntry Price'+str.tostring(price))
+        
+        strategy.close(id='Long', comment='Profit')
+
+// -- Plotting -- //
+plot(series = pos > 0 ? long_stop_price : na, color=color.red, style=plot.style_linebr, linewidth = 2)
+plot(showbb ? upper : na, color=upper > upper[1] ? color.green : upper < upper[1] ? color.red : color.gray) 
